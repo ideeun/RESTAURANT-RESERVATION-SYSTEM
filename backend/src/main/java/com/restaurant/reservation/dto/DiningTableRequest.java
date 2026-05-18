@@ -18,4 +18,12 @@ public class DiningTableRequest {
 
     @NotBlank
     private String status;
+
+    @Min(0)
+    private Integer posX = 100;
+
+    @Min(0)
+    private Integer posY = 100;
+
+    private String shape = "circle";
 }

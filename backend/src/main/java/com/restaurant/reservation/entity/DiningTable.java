@@ -6,7 +6,10 @@ import lombok.*;
 import java.time.Instant;
 
 @Entity
-@Table(name = "dining_tables")
+@Table(
+        name = "dining_tables",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"hall_id", "table_number"})
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,15 +21,27 @@ public class DiningTable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "table_number", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "hall_id", nullable = false)
+    private Hall hall;
+
+    @Column(name = "table_number", nullable = false)
     private int tableNumber;
 
     @Column(nullable = false)
     private int capacity;
 
-    /** e.g. AVAILABLE, OCCUPIED, MAINTENANCE */
     @Column(nullable = false, length = 50)
     private String status;
+
+    @Column(name = "pos_x", nullable = false)
+    private int posX;
+
+    @Column(name = "pos_y", nullable = false)
+    private int posY;
+
+    @Column(nullable = false, length = 20)
+    private String shape;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -38,6 +53,9 @@ public class DiningTable {
         }
         if (status == null) {
             status = "AVAILABLE";
+        }
+        if (shape == null) {
+            shape = "circle";
         }
     }
 }

@@ -11,8 +11,18 @@ import java.util.List;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
-    List<Reservation> findByUserIdOrderByReservationTimeDesc(Long userId);
+    @Query("""
+        SELECT r FROM Reservation r
+        JOIN FETCH r.user JOIN FETCH r.table t JOIN FETCH t.hall h JOIN FETCH h.branch
+        WHERE r.user.id = :userId ORDER BY r.reservationTime DESC
+        """)
+    List<Reservation> findByUserIdOrderByReservationTimeDesc(@Param("userId") Long userId);
 
+    @Query("""
+        SELECT r FROM Reservation r
+        JOIN FETCH r.user JOIN FETCH r.table t JOIN FETCH t.hall h JOIN FETCH h.branch
+        ORDER BY r.reservationTime DESC
+        """)
     List<Reservation> findAllByOrderByReservationTimeDesc();
 
     /**

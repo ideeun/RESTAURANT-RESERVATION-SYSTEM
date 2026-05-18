@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale/ru";
+import Link from "next/link";
 import AuthGuard from "@/components/AuthGuard";
+import StatusChip from "@/components/StatusChip";
 import { fetchMyBookings, getErrorMessage } from "@/lib/api";
 import type { Reservation } from "@/types";
 
@@ -15,40 +17,42 @@ function DashboardContent() {
   useEffect(() => {
     fetchMyBookings()
       .then(setBookings)
-      .catch((err) => setError(getErrorMessage(err)))
+      .catch((e) => setError(getErrorMessage(e)))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+      <div className="flex justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c4b5a0] border-t-[#8b7355]" />
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="font-display text-3xl font-semibold">Мои бронирования</h1>
-      {error && <p className="mt-4 text-red-600">{error}</p>}
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold">Мои брони</h1>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       {bookings.length === 0 ? (
-        <p className="mt-6 text-stone-600">У вас пока нет бронирований.</p>
+        <div className="card text-center">
+          <p className="text-[#8a847a]">Пока нет бронирований</p>
+          <Link href="/book" className="btn-primary mt-4 inline-block">Забронировать</Link>
+        </div>
       ) : (
-        <ul className="mt-6 space-y-4">
+        <ul className="space-y-3">
           {bookings.map((b) => (
-            <li key={b.id} className="card flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="font-semibold">Стол №{b.tableNumber}</p>
-                <p className="text-sm text-stone-600">
-                  {format(parseISO(b.reservationTime), "d MMMM yyyy, HH:mm", { locale: ru })}
-                </p>
-                <p className="text-sm text-stone-500">
-                  {b.guestCount} гостей · {b.duration} мин
-                </p>
+            <li key={b.id} className="card">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">Стол №{b.tableNumber}</p>
+                  <p className="text-sm text-[#8a847a]">{b.branchName} · {b.hallName}</p>
+                  <p className="text-sm text-[#8a847a]">
+                    {format(parseISO(b.reservationTime), "d MMMM yyyy, HH:mm", { locale: ru })}
+                  </p>
+                  <p className="text-xs text-[#8a847a]">{b.guestCount} гостей · {b.duration} мин</p>
+                </div>
+                <StatusChip status={b.status} />
               </div>
-              <span className="rounded-full bg-brand-100 px-3 py-1 text-sm font-medium text-brand-800">
-                {b.status}
-              </span>
             </li>
           ))}
         </ul>
@@ -58,9 +62,5 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
-  return (
-    <AuthGuard>
-      <DashboardContent />
-    </AuthGuard>
-  );
+  return <AuthGuard><DashboardContent /></AuthGuard>;
 }

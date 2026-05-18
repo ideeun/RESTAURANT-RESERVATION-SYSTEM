@@ -55,6 +55,9 @@ public class ReservationService {
         validateGuestCapacity(request.getGuestCount(), table.getCapacity());
 
         LocalDateTime start = request.getReservationTime();
+        if (!start.isAfter(LocalDateTime.now())) {
+            throw new BusinessException("Reservation time must be in the future");
+        }
         LocalDateTime end = start.plusMinutes(request.getDuration());
 
         if (!reservationRepository.findOverlapping(table.getId(), start, end).isEmpty()) {

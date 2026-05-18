@@ -1,4 +1,5 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: update
+      # Пересоздаёт схему при каждом запуске (удобно для разработки)
+      ddl-auto: create-drop

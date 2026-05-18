@@ -1,7 +1,9 @@
 package com.restaurant.reservation.controller;
 
 import com.restaurant.reservation.dto.*;
+import com.restaurant.reservation.service.BranchService;
 import com.restaurant.reservation.service.DiningTableService;
+import com.restaurant.reservation.service.HallService;
 import com.restaurant.reservation.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +18,11 @@ import java.util.List;
 public class AdminController {
 
     private final ReservationService reservationService;
+    private final BranchService branchService;
+    private final HallService hallService;
     private final DiningTableService diningTableService;
 
+    // --- Bookings ---
     @GetMapping("/bookings")
     public List<ReservationDto> allBookings() {
         return reservationService.getAllBookings();
@@ -30,15 +35,69 @@ public class AdminController {
         return reservationService.updateStatus(id, request);
     }
 
+    // --- Branches (филиалы) ---
+    @GetMapping("/branches")
+    public List<BranchDto> allBranches() {
+        return branchService.findAll();
+    }
+
+    @PostMapping("/branches")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BranchDto createBranch(@Valid @RequestBody BranchRequest request) {
+        return branchService.create(request);
+    }
+
+    @PutMapping("/branches/{id}")
+    public BranchDto updateBranch(@PathVariable Long id, @Valid @RequestBody BranchRequest request) {
+        return branchService.update(id, request);
+    }
+
+    @DeleteMapping("/branches/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteBranch(@PathVariable Long id) {
+        branchService.delete(id);
+    }
+
+    // --- Halls (залы) ---
+    @GetMapping("/branches/{branchId}/halls")
+    public List<HallDto> hallsByBranch(@PathVariable Long branchId) {
+        return hallService.findByBranch(branchId);
+    }
+
+    @PostMapping("/branches/{branchId}/halls")
+    @ResponseStatus(HttpStatus.CREATED)
+    public HallDto createHall(@PathVariable Long branchId, @Valid @RequestBody HallRequest request) {
+        return hallService.create(branchId, request);
+    }
+
+    @PutMapping("/halls/{id}")
+    public HallDto updateHall(@PathVariable Long id, @Valid @RequestBody HallRequest request) {
+        return hallService.update(id, request);
+    }
+
+    @DeleteMapping("/halls/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteHall(@PathVariable Long id) {
+        hallService.delete(id);
+    }
+
+    // --- Tables (столики) ---
+    @GetMapping("/halls/{hallId}/tables")
+    public List<DiningTableDto> tablesByHall(@PathVariable Long hallId) {
+        return diningTableService.findByHall(hallId);
+    }
+
     @GetMapping("/tables")
     public List<DiningTableDto> allTables() {
         return diningTableService.findAll();
     }
 
-    @PostMapping("/tables")
+    @PostMapping("/halls/{hallId}/tables")
     @ResponseStatus(HttpStatus.CREATED)
-    public DiningTableDto createTable(@Valid @RequestBody DiningTableRequest request) {
-        return diningTableService.create(request);
+    public DiningTableDto createTable(
+            @PathVariable Long hallId,
+            @Valid @RequestBody DiningTableRequest request) {
+        return diningTableService.create(hallId, request);
     }
 
     @PutMapping("/tables/{id}")

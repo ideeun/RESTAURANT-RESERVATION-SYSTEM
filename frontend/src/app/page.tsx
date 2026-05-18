@@ -1,6 +1,5 @@
-import HomeSearch from "@/components/HomeSearch";
+import WelcomeHero from "@/components/WelcomeHero";
 
-/** Home page — availability search (client interactivity). */
 export default function HomePage() {
-  return <HomeSearch />;
+  return <WelcomeHero />;
 }

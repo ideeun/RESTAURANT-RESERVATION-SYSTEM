@@ -1,6 +1,7 @@
 package com.restaurant.reservation.service;
 
 import com.restaurant.reservation.dto.DiningTableDto;
+import com.restaurant.reservation.dto.DiningTableFloorDto;
 import com.restaurant.reservation.dto.DiningTableRequest;
 import com.restaurant.reservation.entity.DiningTable;
 import com.restaurant.reservation.exception.BusinessException;
@@ -13,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,15 +25,26 @@ public class DiningTableService {
 
     private final DiningTableRepository diningTableRepository;
     private final ReservationRepository reservationRepository;
+    private final HallService hallService;
 
-    /**
-     * Returns tables that are operational and have no overlapping reservation for the given window.
-     */
     @Transactional(readOnly = true)
-    public List<DiningTableDto> findAvailable(LocalDateTime dateTime, int durationMinutes, Integer guestCount) {
+    public List<DiningTableDto> findByHall(Long hallId) {
+        return diningTableRepository.findByHallIdOrderByTableNumberAsc(hallId).stream()
+                .map(DiningTableDto::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DiningTableDto> findAll() {
+        return diningTableRepository.findAllWithHall().stream().map(DiningTableDto::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DiningTableDto> findAvailable(
+            Long hallId, LocalDateTime dateTime, int durationMinutes, Integer guestCount) {
         LocalDateTime end = dateTime.plusMinutes(durationMinutes);
 
-        return diningTableRepository.findByStatusNot(MAINTENANCE).stream()
+        return diningTableRepository.findByHallIdAndStatusNot(hallId, MAINTENANCE).stream()
                 .filter(t -> guestCount == null || t.getCapacity() >= guestCount)
                 .filter(t -> reservationRepository.findOverlapping(t.getId(), dateTime, end).isEmpty())
                 .map(DiningTableDto::from)
@@ -38,30 +52,48 @@ public class DiningTableService {
     }
 
     @Transactional(readOnly = true)
-    public List<DiningTableDto> findAll() {
-        return diningTableRepository.findAll().stream().map(DiningTableDto::from).toList();
+    public List<DiningTableFloorDto> findFloorStatus(
+            Long hallId, LocalDateTime dateTime, int durationMinutes, Integer guestCount) {
+        Set<Long> availableIds = findAvailable(hallId, dateTime, durationMinutes, guestCount).stream()
+                .map(DiningTableDto::getId)
+                .collect(Collectors.toSet());
+
+        return diningTableRepository.findByHallIdOrderByTableNumberAsc(hallId).stream()
+                .map(t -> DiningTableFloorDto.from(t, availableIds.contains(t.getId())))
+                .toList();
     }
 
     @Transactional
-    public DiningTableDto create(DiningTableRequest request) {
-        diningTableRepository.findByTableNumber(request.getTableNumber()).ifPresent(t -> {
-            throw new BusinessException("Table number already exists");
-        });
+    public DiningTableDto create(Long hallId, DiningTableRequest request) {
+        if (diningTableRepository.existsByHallIdAndTableNumber(hallId, request.getTableNumber())) {
+            throw new BusinessException("Table number already exists in this hall");
+        }
         DiningTable table = DiningTable.builder()
+                .hall(hallService.findEntity(hallId))
                 .tableNumber(request.getTableNumber())
                 .capacity(request.getCapacity())
                 .status(request.getStatus())
+                .posX(request.getPosX() != null ? request.getPosX() : 100)
+                .posY(request.getPosY() != null ? request.getPosY() : 100)
+                .shape(request.getShape() != null ? request.getShape() : "circle")
                 .build();
         return DiningTableDto.from(diningTableRepository.save(table));
     }
 
     @Transactional
     public DiningTableDto update(Long id, DiningTableRequest request) {
-        DiningTable table = diningTableRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Table not found"));
+        DiningTable table = findEntity(id);
+        if (table.getTableNumber() != request.getTableNumber()
+                && diningTableRepository.existsByHallIdAndTableNumber(
+                        table.getHall().getId(), request.getTableNumber())) {
+            throw new BusinessException("Table number already exists in this hall");
+        }
         table.setTableNumber(request.getTableNumber());
         table.setCapacity(request.getCapacity());
         table.setStatus(request.getStatus());
+        table.setPosX(request.getPosX() != null ? request.getPosX() : table.getPosX());
+        table.setPosY(request.getPosY() != null ? request.getPosY() : table.getPosY());
+        table.setShape(request.getShape() != null ? request.getShape() : table.getShape());
         return DiningTableDto.from(diningTableRepository.save(table));
     }
 
@@ -71,5 +103,10 @@ public class DiningTableService {
             throw new ResourceNotFoundException("Table not found");
         }
         diningTableRepository.deleteById(id);
+    }
+
+    DiningTable findEntity(Long id) {
+        return diningTableRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Table not found"));
     }
 }

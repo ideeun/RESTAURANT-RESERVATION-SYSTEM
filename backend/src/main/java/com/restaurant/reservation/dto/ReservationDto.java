@@ -17,6 +17,8 @@ public class ReservationDto {
     private String username;
     private Long tableId;
     private int tableNumber;
+    private String branchName;
+    private String hallName;
     private LocalDateTime reservationTime;
     private int duration;
     private int guestCount;
@@ -29,6 +31,8 @@ public class ReservationDto {
                 .username(r.getUser().getUsername())
                 .tableId(r.getTable().getId())
                 .tableNumber(r.getTable().getTableNumber())
+                .branchName(r.getTable().getHall().getBranch().getName())
+                .hallName(r.getTable().getHall().getName())
                 .reservationTime(r.getReservationTime())
                 .duration(r.getDuration())
                 .guestCount(r.getGuestCount())
