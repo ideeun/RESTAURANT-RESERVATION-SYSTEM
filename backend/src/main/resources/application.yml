@@ -17,6 +17,10 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 server:
   port: 8080
@@ -29,6 +33,10 @@ app:
     expiration-ms: 86400000
   cors:
     allowed-origins: http://localhost:3000
+  upload:
+    # Всегда папка uploads рядом с запуском (backend/uploads)
+    directory: ${user.dir}/uploads
+    max-file-size-bytes: 5242880
 
 logging:
   level:

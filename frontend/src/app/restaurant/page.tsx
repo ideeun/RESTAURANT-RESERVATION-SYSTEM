@@ -13,7 +13,14 @@ export default function RestaurantPage() {
         <h1 className="text-2xl font-semibold">French Touch</h1>
         <p className="mt-2 text-sm text-[#8a847a]">Изысканная кухня · уютная атмосфера</p>
         <p className="mt-1 text-sm text-[#8a847a]">Ежедневно 12:00 – 22:00</p>
-        <Link href="/book" className="btn-primary mt-6 block text-center">Забронировать стол</Link>
+        <div className="mt-6 flex flex-col gap-2">
+          <Link href="/menu" className="btn-primary block text-center">
+            Смотреть меню
+          </Link>
+          <Link href="/book" className="btn-secondary block text-center">
+            Забронировать стол
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -54,6 +54,17 @@ export interface DiningTableFloor {
   shape: string;
 }
 
+export interface MenuItem {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  category: string;
+  imageUrl?: string | null;
+  available: boolean;
+  sortOrder: number;
+}
+
 export interface Reservation {
   id: number;
   userId: number;

@@ -8,8 +8,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -45,6 +48,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
         return build(HttpStatus.FORBIDDEN, "Access denied", req.getRequestURI(), null);
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class
+    })
+    public ResponseEntity<ApiError> handleMissingPart(Exception ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUpload(MaxUploadSizeExceededException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "File too large (max 5 MB)", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(Exception.class)

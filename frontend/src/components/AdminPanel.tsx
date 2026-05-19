@@ -22,9 +22,10 @@ import type { Branch, DiningTable, Hall, Reservation, ReservationStatus } from "
 import Select from "@/components/Select";
 import StatusSelect from "@/components/StatusSelect";
 import FloorPlanEditor from "@/components/floor/FloorPlanEditor";
+import MenuAdminSection from "@/components/MenuAdminSection";
 import { nextTablePosition, TABLE_STATUS_LABELS } from "@/lib/tableLayout";
 
-type Tab = "bookings" | "branches" | "halls" | "tables";
+type Tab = "bookings" | "branches" | "halls" | "tables" | "menu";
 
 function AdminPanelContent() {
   const [tab, setTab] = useState<Tab>("bookings");
@@ -101,6 +102,7 @@ function AdminPanelContent() {
     { id: "branches", label: "Филиалы" },
     { id: "halls", label: "Залы" },
     { id: "tables", label: "Столики" },
+    { id: "menu", label: "Меню" },
   ];
 
   if (loading && !branches.length) {
@@ -116,7 +118,7 @@ function AdminPanelContent() {
       <h1 className="text-2xl font-semibold">Админ-панель</h1>
       {error && <p className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#f5f1eb] p-1 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#f5f1eb] p-1 sm:grid-cols-3 lg:grid-cols-5">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -224,6 +226,8 @@ function AdminPanelContent() {
           </ul>
         </div>
       )}
+
+      {tab === "menu" && <MenuAdminSection />}
 
       {tab === "tables" && (
         <div className="space-y-4">

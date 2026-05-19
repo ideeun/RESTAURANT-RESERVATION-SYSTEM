@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { IconCalendar, IconHome, IconUser } from "@/components/NavIcon";
+import { IconCalendar, IconHome, IconMenu, IconUser } from "@/components/NavIcon";
 import { isAuthenticated } from "@/lib/auth";
 
 const items: {
@@ -14,6 +14,7 @@ const items: {
   auth?: boolean;
 }[] = [
   { href: "/", label: "Главная", Icon: IconHome },
+  { href: "/menu", label: "Меню", Icon: IconMenu },
   { href: "/book", label: "Бронь", Icon: IconCalendar },
   { href: "/dashboard", label: "Мои", Icon: IconUser, auth: true },
 ];
@@ -32,7 +33,9 @@ export default function BottomNav() {
         {items.map(({ href, label, Icon, auth }) => {
           if (auth && !authed) return null;
           const active =
-            pathname === href || (href === "/book" && pathname.startsWith("/book"));
+            pathname === href ||
+            (href === "/book" && pathname.startsWith("/book")) ||
+            (href === "/menu" && pathname.startsWith("/menu"));
           return (
             <Link
               key={href}

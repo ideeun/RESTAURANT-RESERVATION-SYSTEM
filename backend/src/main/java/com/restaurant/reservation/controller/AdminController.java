@@ -4,12 +4,16 @@ import com.restaurant.reservation.dto.*;
 import com.restaurant.reservation.service.BranchService;
 import com.restaurant.reservation.service.DiningTableService;
 import com.restaurant.reservation.service.HallService;
+import com.restaurant.reservation.service.MenuItemService;
 import com.restaurant.reservation.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -21,6 +25,7 @@ public class AdminController {
     private final BranchService branchService;
     private final HallService hallService;
     private final DiningTableService diningTableService;
+    private final MenuItemService menuItemService;
 
     // --- Bookings ---
     @GetMapping("/bookings")
@@ -116,5 +121,51 @@ public class AdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTable(@PathVariable Long id) {
         diningTableService.delete(id);
+    }
+
+    // --- Menu ---
+    @GetMapping("/menu")
+    public List<MenuItemDto> allMenuItems() {
+        return menuItemService.findAll();
+    }
+
+    @PostMapping(value = "/menu", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public MenuItemDto createMenuItem(
+            @RequestParam String name,
+            @RequestParam(required = false) String description,
+            @RequestParam BigDecimal price,
+            @RequestParam String category,
+            @RequestParam(defaultValue = "true") boolean available,
+            @RequestParam(defaultValue = "0") int sortOrder,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        MenuItemRequest request = new MenuItemRequest();
+        request.setName(name);
+        request.setDescription(description);
+        request.setPrice(price);
+        request.setCategory(category);
+        request.setAvailable(available);
+        request.setSortOrder(sortOrder);
+        return menuItemService.create(request, image);
+    }
+
+    @PutMapping("/menu/{id}")
+    public MenuItemDto updateMenuItem(
+            @PathVariable Long id,
+            @Valid @RequestBody MenuItemRequest request) {
+        return menuItemService.update(id, request);
+    }
+
+    @PostMapping(value = "/menu/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public MenuItemDto updateMenuItemImage(
+            @PathVariable Long id,
+            @RequestPart("image") MultipartFile image) {
+        return menuItemService.updateImage(id, image);
+    }
+
+    @DeleteMapping("/menu/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMenuItem(@PathVariable Long id) {
+        menuItemService.delete(id);
     }
 }

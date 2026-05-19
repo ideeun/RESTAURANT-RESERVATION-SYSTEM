@@ -19,6 +19,14 @@ export function IconCalendar({ className = "h-5 w-5" }: IconProps) {
   );
 }
 
+export function IconMenu({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h10" />
+    </svg>
+  );
+}
+
 export function IconUser({ className = "h-5 w-5" }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>

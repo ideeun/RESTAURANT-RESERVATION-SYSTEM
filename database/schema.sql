@@ -55,3 +55,17 @@ CREATE TABLE reservations (
 CREATE INDEX idx_halls_branch ON halls (branch_id);
 CREATE INDEX idx_tables_hall ON dining_tables (hall_id);
 CREATE INDEX idx_reservations_table_time ON reservations (table_id, reservation_time);
+
+CREATE TABLE menu_items (
+    id              BIGSERIAL PRIMARY KEY,
+    name            VARCHAR(150) NOT NULL,
+    description     VARCHAR(1000),
+    price           DECIMAL(10, 2) NOT NULL CHECK (price > 0),
+    category        VARCHAR(50)  NOT NULL,
+    image_path      VARCHAR(255),
+    available       BOOLEAN      NOT NULL DEFAULT TRUE,
+    sort_order      INT          NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_menu_items_available ON menu_items (available, sort_order);

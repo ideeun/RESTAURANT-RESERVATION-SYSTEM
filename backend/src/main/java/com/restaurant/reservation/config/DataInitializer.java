@@ -4,8 +4,11 @@ import com.restaurant.reservation.entity.*;
 import com.restaurant.reservation.repository.BranchRepository;
 import com.restaurant.reservation.repository.DiningTableRepository;
 import com.restaurant.reservation.repository.HallRepository;
+import com.restaurant.reservation.repository.MenuItemRepository;
 import com.restaurant.reservation.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.math.BigDecimal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
@@ -22,6 +25,7 @@ public class DataInitializer implements CommandLineRunner {
     private final BranchRepository branchRepository;
     private final HallRepository hallRepository;
     private final DiningTableRepository diningTableRepository;
+    private final MenuItemRepository menuItemRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -67,6 +71,31 @@ public class DataInitializer implements CommandLineRunner {
             seedTables(mainAstana);
 
             log.info("Seeded branches, halls and tables");
+        }
+
+        if (menuItemRepository.count() == 0) {
+            menuItemRepository.save(MenuItem.builder()
+                    .name("Тартар из говядины")
+                    .description("Каперсы, яичный желток, тосты")
+                    .price(new BigDecimal("4200"))
+                    .category("Закуски")
+                    .sortOrder(1)
+                    .build());
+            menuItemRepository.save(MenuItem.builder()
+                    .name("Утка конфи")
+                    .description("Карамелизированная груша, соус из красного вина")
+                    .price(new BigDecimal("8900"))
+                    .category("Основные")
+                    .sortOrder(2)
+                    .build());
+            menuItemRepository.save(MenuItem.builder()
+                    .name("Тирамису")
+                    .description("Классический итальянский десерт")
+                    .price(new BigDecimal("3200"))
+                    .category("Десерты")
+                    .sortOrder(3)
+                    .build());
+            log.info("Seeded demo menu items");
         }
     }
 

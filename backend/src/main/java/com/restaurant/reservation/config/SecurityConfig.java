@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/branches", "/api/v1/branches/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/tables", "/api/v1/tables/available").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/menu").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

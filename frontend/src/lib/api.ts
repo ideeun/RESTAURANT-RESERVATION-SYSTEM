@@ -5,12 +5,23 @@ import type {
   DiningTable,
   DiningTableFloor,
   Hall,
+  MenuItem,
   Reservation,
   ReservationStatus,
 } from "@/types";
 import { clearAuth, getToken } from "./auth";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
+export function menuImageUrl(imageUrl?: string | null): string | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith("http")) return imageUrl;
+  let path = imageUrl;
+  if (path.startsWith("/uploads/")) {
+    path = path.replace("/uploads/", "/api/v1/files/");
+  }
+  return `${baseURL}${path}`;
+}
 
 export const api = axios.create({
   baseURL,
@@ -20,6 +31,14 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // FormData: убрать application/json, иначе multipart ломается (data/image приходят пустыми)
+  if (config.data instanceof FormData) {
+    if (typeof config.headers.delete === "function") {
+      config.headers.delete("Content-Type");
+    } else {
+      delete (config.headers as Record<string, string>)["Content-Type"];
+    }
+  }
   return config;
 });
 
@@ -213,6 +232,67 @@ export async function updateTable(
 
 export async function deleteTable(id: number) {
   await api.delete(`/api/v1/admin/tables/${id}`);
+}
+
+// Menu (public)
+export async function fetchMenu() {
+  const { data } = await api.get<MenuItem[]>("/api/v1/menu");
+  return data;
+}
+
+// Menu (admin)
+export async function fetchAdminMenu() {
+  const { data } = await api.get<MenuItem[]>("/api/v1/admin/menu");
+  return data;
+}
+
+export async function createMenuItem(
+  payload: {
+    name: string;
+    description?: string;
+    price: number;
+    category: string;
+    available?: boolean;
+    sortOrder?: number;
+  },
+  image?: File | null
+) {
+  const form = new FormData();
+  form.append("name", payload.name);
+  if (payload.description) form.append("description", payload.description);
+  form.append("price", String(payload.price));
+  form.append("category", payload.category);
+  form.append("available", String(payload.available ?? true));
+  form.append("sortOrder", String(payload.sortOrder ?? 0));
+  if (image) form.append("image", image);
+  const { data } = await api.post<MenuItem>("/api/v1/admin/menu", form);
+  return data;
+}
+
+export async function updateMenuItem(
+  id: number,
+  payload: {
+    name: string;
+    description?: string;
+    price: number;
+    category: string;
+    available?: boolean;
+    sortOrder?: number;
+  }
+) {
+  const { data } = await api.put<MenuItem>(`/api/v1/admin/menu/${id}`, payload);
+  return data;
+}
+
+export async function updateMenuItemImage(id: number, image: File) {
+  const form = new FormData();
+  form.append("image", image);
+  const { data } = await api.post<MenuItem>(`/api/v1/admin/menu/${id}/image`, form);
+  return data;
+}
+
+export async function deleteMenuItem(id: number) {
+  await api.delete(`/api/v1/admin/menu/${id}`);
 }
 
 export async function updateHallLayout(

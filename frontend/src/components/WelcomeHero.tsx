@@ -23,7 +23,10 @@ export default function WelcomeHero() {
         </p>
         <div className="mt-6 flex flex-col gap-2">
           <Link href="/book" className="btn-primary">Забронировать стол</Link>
-          <Link href="/restaurant" className="btn-secondary w-full text-center">О ресторане</Link>
+          <Link href="/menu" className="btn-secondary w-full text-center">Меню</Link>
+          <Link href="/restaurant" className="text-center text-sm text-[#8b7355] underline-offset-2 hover:underline">
+            О ресторане
+          </Link>
         </div>
       </div>
     </div>
