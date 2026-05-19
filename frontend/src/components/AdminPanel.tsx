@@ -18,7 +18,9 @@ import {
   updateBookingStatus,
 } from "@/lib/api";
 import type { Branch, DiningTable, Hall, Reservation, ReservationStatus } from "@/types";
+import Select from "@/components/Select";
 import StatusSelect from "@/components/StatusSelect";
+import FloorPlanEditor from "@/components/floor/FloorPlanEditor";
 import { nextTablePosition, TABLE_STATUS_LABELS } from "@/lib/tableLayout";
 
 type Tab = "bookings" | "branches" | "halls" | "tables";
@@ -171,16 +173,15 @@ function AdminPanelContent() {
 
       {tab === "halls" && (
         <div className="space-y-4">
-          <select
-            className="input-field"
+          <Select
             value={selectedBranchId ?? ""}
-            onChange={(e) => {
-              setSelectedBranchId(Number(e.target.value));
+            onChange={(id) => {
+              setSelectedBranchId(id);
               setSelectedHallId(null);
             }}
-          >
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            placeholder="Филиал"
+          />
           {selectedBranchId && (
             <form
               className="card space-y-3"
@@ -213,14 +214,38 @@ function AdminPanelContent() {
       {tab === "tables" && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
-            <select className="input-field" value={selectedBranchId ?? ""} onChange={(e) => { setSelectedBranchId(Number(e.target.value)); setSelectedHallId(null); }}>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <select className="input-field" value={selectedHallId ?? ""} onChange={(e) => setSelectedHallId(Number(e.target.value))}>
-              {halls.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
+            <Select
+              value={selectedBranchId ?? ""}
+              onChange={(id) => {
+                setSelectedBranchId(id);
+                setSelectedHallId(null);
+              }}
+              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              placeholder="Филиал"
+            />
+            <Select
+              value={selectedHallId ?? ""}
+              onChange={(id) => setSelectedHallId(id)}
+              options={halls.map((h) => ({ value: h.id, label: h.name }))}
+              placeholder="Зал"
+            />
           </div>
           {selectedHallId && (
+            <>
+              <FloorPlanEditor
+                hallId={selectedHallId}
+                tables={tables}
+                tableForm={tableForm}
+                onTablesChange={() => {
+                  fetchAdminTables(selectedHallId).then((list) => {
+                    setTables(list);
+                    setTableForm((f) => ({
+                      ...f,
+                      tableNumber: (list.length ? Math.max(...list.map((t) => t.tableNumber)) : 0) + 1,
+                    }));
+                  });
+                }}
+              />
             <form
               className="card space-y-3"
               onSubmit={async (e) => {
@@ -236,8 +261,10 @@ function AdminPanelContent() {
                 if (selectedHallId) fetchAdminTables(selectedHallId).then(setTables);
               }}
             >
-              <p className="font-medium">Добавить столик</p>
-              <p className="text-xs text-[#8a847a]">Размер на схеме зависит от числа мест</p>
+              <p className="font-medium">Добавить столик (форма)</p>
+              <p className="text-xs text-[#8a847a]">
+                Или нажмите «Поставить стол» на схеме выше. Размер зависит от числа мест.
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="label">№ стола</span>
@@ -264,29 +291,30 @@ function AdminPanelContent() {
                 </label>
                 <label className="block">
                   <span className="label">Статус</span>
-                  <select
-                    className="input-field"
+                  <Select
                     value={tableForm.status}
-                    onChange={(e) => setTableForm({ ...tableForm, status: e.target.value })}
-                  >
-                    <option value="AVAILABLE">{TABLE_STATUS_LABELS.AVAILABLE}</option>
-                    <option value="MAINTENANCE">{TABLE_STATUS_LABELS.MAINTENANCE}</option>
-                  </select>
+                    onChange={(status) => setTableForm({ ...tableForm, status })}
+                    options={[
+                      { value: "AVAILABLE", label: TABLE_STATUS_LABELS.AVAILABLE },
+                      { value: "MAINTENANCE", label: TABLE_STATUS_LABELS.MAINTENANCE },
+                    ]}
+                  />
                 </label>
                 <label className="block">
                   <span className="label">Форма</span>
-                  <select
-                    className="input-field"
+                  <Select
                     value={tableForm.shape}
-                    onChange={(e) => setTableForm({ ...tableForm, shape: e.target.value })}
-                  >
-                    <option value="circle">Круг</option>
-                    <option value="rect">Прямоугольник</option>
-                  </select>
+                    onChange={(shape) => setTableForm({ ...tableForm, shape })}
+                    options={[
+                      { value: "circle", label: "Круг" },
+                      { value: "rect", label: "Прямоугольник" },
+                    ]}
+                  />
                 </label>
               </div>
               <button type="submit" className="btn-primary">Добавить стол</button>
             </form>
+            </>
           )}
           <ul className="space-y-2">
             {tables.map((t) => (

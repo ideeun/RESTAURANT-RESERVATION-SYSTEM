@@ -2,7 +2,7 @@
 
 export const FLOOR_VIEW = { width: 600, height: 480 };
 
-const ROOM = { x: 48, y: 56, w: 504, h: 368 };
+export const ROOM = { x: 48, y: 56, w: 504, h: 368 };
 
 /** Радиус круглого стола от числа мест. */
 export function circleRadius(capacity: number): number {

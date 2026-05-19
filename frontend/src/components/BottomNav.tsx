@@ -7,11 +7,16 @@ import clsx from "clsx";
 import { IconCalendar, IconHome, IconUser } from "@/components/NavIcon";
 import { isAuthenticated } from "@/lib/auth";
 
-const items = [
+const items: {
+  href: string;
+  label: string;
+  Icon: typeof IconHome;
+  auth?: boolean;
+}[] = [
   { href: "/", label: "Главная", Icon: IconHome },
   { href: "/book", label: "Бронь", Icon: IconCalendar },
   { href: "/dashboard", label: "Мои", Icon: IconUser, auth: true },
-] as const;
+];
 
 export default function BottomNav() {
   const pathname = usePathname();

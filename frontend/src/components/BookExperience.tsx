@@ -6,6 +6,7 @@ import { format, parse } from "date-fns";
 import { ru } from "date-fns/locale/ru";
 import clsx from "clsx";
 import FloorPlanMap from "@/components/FloorPlanMap";
+import Select from "@/components/Select";
 import BookingModal from "@/components/BookingModal";
 import DateTimePicker from "@/components/DateTimePicker";
 import {
@@ -107,26 +108,24 @@ export default function BookExperience() {
       <div className="card space-y-4">
         <div>
           <label className="label">Филиал</label>
-          <select className="input-field" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+          <Select
+            value={branchId ?? ""}
+            onChange={(id) => setBranchId(id)}
+            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            placeholder="Выберите филиал"
+          />
           {branch?.address && <p className="mt-1 text-xs text-[#8a847a]">{branch.address}</p>}
         </div>
 
         <div>
           <label className="label">Зал</label>
-          <select
-            className="input-field"
+          <Select
             value={hallId ?? ""}
-            onChange={(e) => setHallId(Number(e.target.value))}
+            onChange={(id) => setHallId(id)}
+            options={halls.map((h) => ({ value: h.id, label: h.name }))}
             disabled={!halls.length}
-          >
-            {halls.map((h) => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
+            placeholder="Выберите зал"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
