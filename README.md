@@ -54,6 +54,12 @@ API: `http://localhost:8080`
 | PATCH | `/api/v1/admin/bookings/{id}`           | JWT (ADMIN) |
 | CRUD  | `/api/v1/admin/tables`                  | JWT (ADMIN) |
 
+### Real-time (WebSocket / STOMP)
+
+- Endpoint: `ws://localhost:8080/ws` (нативный WebSocket + STOMP)
+- Публично: `/topic/halls/{hallId}` — сигнал обновить схему зала после новой брони
+- JWT: `/user/queue/bookings` (личные брони), `/topic/admin/bookings` (только ADMIN)
+
 ### Бизнес-правила
 
 - Пересечение броней на одном столе запрещено (кроме `CANCELLED` / `COMPLETED`).

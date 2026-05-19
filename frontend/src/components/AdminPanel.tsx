@@ -17,6 +17,7 @@ import {
   getErrorMessage,
   updateBookingStatus,
 } from "@/lib/api";
+import { applyReservationEvent, subscribeAdminBookings, subscribeHallAvailability } from "@/lib/realtime";
 import type { Branch, DiningTable, Hall, Reservation, ReservationStatus } from "@/types";
 import Select from "@/components/Select";
 import StatusSelect from "@/components/StatusSelect";
@@ -62,6 +63,12 @@ function AdminPanelContent() {
   }, []);
 
   useEffect(() => {
+    return subscribeAdminBookings((event) => {
+      setBookings((prev) => applyReservationEvent(prev, event));
+    });
+  }, []);
+
+  useEffect(() => {
     if (!selectedBranchId) {
       setHalls([]);
       return;
@@ -81,6 +88,13 @@ function AdminPanelContent() {
     }
     fetchAdminTables(selectedHallId).then(setTables).catch((e) => setError(getErrorMessage(e)));
   }, [selectedHallId]);
+
+  useEffect(() => {
+    if (tab !== "tables" || !selectedHallId) return;
+    return subscribeHallAvailability(selectedHallId, () => {
+      fetchAdminTables(selectedHallId).then(setTables).catch((e) => setError(getErrorMessage(e)));
+    });
+  }, [tab, selectedHallId]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "bookings", label: "Брони" },

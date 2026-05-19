@@ -28,6 +28,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final DiningTableRepository diningTableRepository;
     private final UserRepository userRepository;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional(readOnly = true)
     public List<ReservationDto> getUserBookings(Long userId) {
@@ -73,7 +74,11 @@ public class ReservationService {
                 .status(ReservationStatus.PENDING)
                 .build();
 
-        return ReservationDto.from(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+        ReservationDto dto = ReservationDto.from(saved);
+        Long hallId = saved.getTable().getHall().getId();
+        realtimeEventPublisher.reservationCreated(dto, hallId);
+        return dto;
     }
 
     @Transactional
@@ -82,7 +87,11 @@ public class ReservationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
 
         reservation.setStatus(request.getStatus());
-        return ReservationDto.from(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+        ReservationDto dto = ReservationDto.from(saved);
+        Long hallId = saved.getTable().getHall().getId();
+        realtimeEventPublisher.reservationUpdated(dto, hallId);
+        return dto;
     }
 
     private void validateTableAvailable(DiningTable table) {

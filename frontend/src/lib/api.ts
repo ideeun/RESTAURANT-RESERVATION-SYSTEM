@@ -214,3 +214,13 @@ export async function updateTable(
 export async function deleteTable(id: number) {
   await api.delete(`/api/v1/admin/tables/${id}`);
 }
+
+export async function updateHallLayout(
+  hallId: number,
+  tables: { id: number; posX: number; posY: number }[]
+) {
+  const { data } = await api.put<DiningTable[]>(`/api/v1/admin/halls/${hallId}/tables/layout`, {
+    tables,
+  });
+  return data;
+}

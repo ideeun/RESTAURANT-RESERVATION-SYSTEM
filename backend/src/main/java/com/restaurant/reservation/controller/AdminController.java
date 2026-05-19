@@ -105,6 +105,13 @@ public class AdminController {
         return diningTableService.update(id, request);
     }
 
+    @PutMapping("/halls/{hallId}/tables/layout")
+    public List<DiningTableDto> updateTableLayout(
+            @PathVariable Long hallId,
+            @Valid @RequestBody UpdateTableLayoutRequest request) {
+        return diningTableService.updateLayout(hallId, request.getTables());
+    }
+
     @DeleteMapping("/tables/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTable(@PathVariable Long id) {

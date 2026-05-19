@@ -16,6 +16,7 @@ import {
   fetchHalls,
 } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
+import { subscribeHallAvailability } from "@/lib/realtime";
 import { defaultSearchDate, defaultSearchTime, toApiDateTime } from "@/lib/datetime";
 import type { Branch, DiningTableFloor, Hall } from "@/types";
 
@@ -71,6 +72,11 @@ export default function BookExperience() {
   useEffect(() => {
     loadFloor();
   }, [loadFloor]);
+
+  useEffect(() => {
+    if (!hallId) return;
+    return subscribeHallAvailability(hallId, loadFloor);
+  }, [hallId, loadFloor]);
 
   const monthLabel = format(parse(date, "yyyy-MM-dd", new Date()), "LLLL", { locale: ru });
   const dayLabel = format(parse(date, "yyyy-MM-dd", new Date()), "d");

@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.restaurant.reservation.dto.TableLayoutItem;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +28,7 @@ public class DiningTableService {
     private final DiningTableRepository diningTableRepository;
     private final ReservationRepository reservationRepository;
     private final HallService hallService;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional(readOnly = true)
     public List<DiningTableDto> findByHall(Long hallId) {
@@ -77,7 +80,27 @@ public class DiningTableService {
                 .posY(request.getPosY() != null ? request.getPosY() : 100)
                 .shape(request.getShape() != null ? request.getShape() : "circle")
                 .build();
-        return DiningTableDto.from(diningTableRepository.save(table));
+        DiningTable saved = diningTableRepository.save(table);
+        realtimeEventPublisher.hallLayoutUpdated(hallId);
+        return DiningTableDto.from(saved);
+    }
+
+    @Transactional
+    public List<DiningTableDto> updateLayout(Long hallId, List<TableLayoutItem> items) {
+        hallService.findEntity(hallId);
+        List<DiningTableDto> updated = items.stream()
+                .map(item -> {
+                    DiningTable table = findEntity(item.getId());
+                    if (!table.getHall().getId().equals(hallId)) {
+                        throw new BusinessException("Table does not belong to this hall");
+                    }
+                    table.setPosX(item.getPosX());
+                    table.setPosY(item.getPosY());
+                    return DiningTableDto.from(diningTableRepository.save(table));
+                })
+                .toList();
+        realtimeEventPublisher.hallLayoutUpdated(hallId);
+        return updated;
     }
 
     @Transactional
@@ -94,15 +117,17 @@ public class DiningTableService {
         table.setPosX(request.getPosX() != null ? request.getPosX() : table.getPosX());
         table.setPosY(request.getPosY() != null ? request.getPosY() : table.getPosY());
         table.setShape(request.getShape() != null ? request.getShape() : table.getShape());
-        return DiningTableDto.from(diningTableRepository.save(table));
+        DiningTable saved = diningTableRepository.save(table);
+        realtimeEventPublisher.hallLayoutUpdated(saved.getHall().getId());
+        return DiningTableDto.from(saved);
     }
 
     @Transactional
     public void delete(Long id) {
-        if (!diningTableRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Table not found");
-        }
-        diningTableRepository.deleteById(id);
+        DiningTable table = findEntity(id);
+        Long hallId = table.getHall().getId();
+        diningTableRepository.delete(table);
+        realtimeEventPublisher.hallLayoutUpdated(hallId);
     }
 
     DiningTable findEntity(Long id) {

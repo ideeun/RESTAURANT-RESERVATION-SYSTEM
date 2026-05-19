@@ -7,6 +7,7 @@ import Link from "next/link";
 import AuthGuard from "@/components/AuthGuard";
 import StatusChip from "@/components/StatusChip";
 import { fetchMyBookings, getErrorMessage } from "@/lib/api";
+import { applyReservationEvent, subscribeMyBookings } from "@/lib/realtime";
 import type { Reservation } from "@/types";
 
 function DashboardContent() {
@@ -19,6 +20,12 @@ function DashboardContent() {
       .then(setBookings)
       .catch((e) => setError(getErrorMessage(e)))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    return subscribeMyBookings((event) => {
+      setBookings((prev) => applyReservationEvent(prev, event));
+    });
   }, []);
 
   if (loading) {

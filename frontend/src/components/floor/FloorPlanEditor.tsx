@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import FloorPlan from "@/components/floor/FloorPlan";
+import FloorPlan, { type LayoutDraft } from "@/components/floor/FloorPlan";
 import TableEditPanel, { type TableEditValues } from "@/components/floor/TableEditPanel";
 import type { FloorTable } from "@/components/floor/types";
-import { createTable, deleteTable, getErrorMessage, updateTable } from "@/lib/api";
+import { createTable, deleteTable, getErrorMessage, updateHallLayout, updateTable } from "@/lib/api";
 import type { DiningTable } from "@/types";
 
 interface FloorPlanEditorProps {
@@ -43,24 +43,31 @@ export default function FloorPlanEditor({
   const [placeMode, setPlaceMode] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingLayout, setSavingLayout] = useState(false);
 
   const floorTables = tables.map(toFloorTable);
   const selected = tables.find((t) => t.id === selectedId);
 
-  const handleMove = async (table: FloorTable, posX: number, posY: number) => {
-    const full = tables.find((t) => t.id === table.id);
-    if (!full) return;
+  const handleSaveLayout = async (draft: LayoutDraft) => {
+    const items = Object.entries(draft).map(([id, pos]) => ({
+      id: Number(id),
+      posX: Math.round(pos.x),
+      posY: Math.round(pos.y),
+    }));
+    if (items.length === 0) return;
+
+    setSavingLayout(true);
     setError(null);
-    await updateTable(table.id, {
-      tableNumber: full.tableNumber,
-      capacity: full.capacity,
-      status: full.status,
-      shape: full.shape ?? "circle",
-      posX,
-      posY,
-    });
-    setMessage("Позиция сохранена");
-    onTablesChange();
+    try {
+      await updateHallLayout(hallId, items);
+      setMessage("Расположение столов сохранено");
+      onTablesChange();
+    } catch (e) {
+      setError(getErrorMessage(e));
+      throw e;
+    } finally {
+      setSavingLayout(false);
+    }
   };
 
   const handlePlace = async (posX: number, posY: number) => {
@@ -123,13 +130,15 @@ export default function FloorPlanEditor({
         mode="edit"
         selectedTableId={selectedId}
         placeMode={placeMode}
+        deferLayoutSave
+        savingLayout={savingLayout}
+        onSaveLayout={handleSaveLayout}
         onSelect={(t) => {
           setSelectedId(t.id);
           setPlaceMode(false);
           setMessage(null);
           setError(null);
         }}
-        onMoveTable={handleMove}
         onPlaceTable={handlePlace}
       />
 

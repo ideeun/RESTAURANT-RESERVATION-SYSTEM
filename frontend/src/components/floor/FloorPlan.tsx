@@ -8,15 +8,22 @@ import type { FloorTable } from "./types";
 
 type Mode = "view" | "edit";
 
+export type LayoutDraft = Record<number, { x: number; y: number }>;
+
 interface FloorPlanProps {
   tables: FloorTable[];
   mode?: Mode;
   selectedTableId?: number | null;
   selectedTableNumber?: number | null;
   onSelect?: (table: FloorTable) => void;
+  /** Immediate save on drag end (legacy) */
   onMoveTable?: (table: FloorTable, posX: number, posY: number) => void | Promise<void>;
+  /** Defer save: drag updates draft, parent saves via onSaveLayout */
+  deferLayoutSave?: boolean;
+  onSaveLayout?: (draft: LayoutDraft) => void | Promise<void>;
   onPlaceTable?: (posX: number, posY: number) => void;
   placeMode?: boolean;
+  savingLayout?: boolean;
 }
 
 function tableFill(table: FloorTable, selected: boolean, mode: Mode): string {
@@ -59,22 +66,27 @@ export default function FloorPlan({
   selectedTableNumber,
   onSelect,
   onMoveTable,
+  deferLayoutSave = false,
+  onSaveLayout,
   onPlaceTable,
   placeMode = false,
+  savingLayout = false,
 }: FloorPlanProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const suppressClickRef = useRef(false);
   const dragMovedRef = useRef(false);
   const [drag, setDrag] = useState<{ id: number; offsetX: number; offsetY: number } | null>(null);
-  const [draftPos, setDraftPos] = useState<Record<number, { x: number; y: number }>>({});
+  const [draftPos, setDraftPos] = useState<LayoutDraft>({});
   const [savingId, setSavingId] = useState<number | null>(null);
+
+  const hasLayoutDraft = deferLayoutSave && Object.keys(draftPos).length > 0;
 
   const getPos = useCallback(
     (t: FloorTable) => draftPos[t.id] ?? { x: t.posX, y: t.posY },
     [draftPos]
   );
 
-  const endDrag = useCallback(
+  const endDragImmediate = useCallback(
     async (table: FloorTable, x: number, y: number) => {
       if (!onMoveTable) return;
       setSavingId(table.id);
@@ -128,7 +140,11 @@ export default function FloorPlan({
         const clamped = clampCenter(x - drag.offsetX, y - drag.offsetY, halfW, halfH);
         if (dragMovedRef.current) {
           suppressClickRef.current = true;
-          void endDrag(table, clamped.x, clamped.y);
+          if (deferLayoutSave) {
+            setDraftPos((d) => ({ ...d, [table.id]: clamped }));
+          } else {
+            void endDragImmediate(table, clamped.x, clamped.y);
+          }
         }
       }
       setDrag(null);
@@ -140,7 +156,7 @@ export default function FloorPlan({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [drag, tables, endDrag]);
+  }, [drag, tables, deferLayoutSave, endDragImmediate]);
 
   const handleTableClick = (table: FloorTable, canBook: boolean) => {
     if (suppressClickRef.current) {
@@ -158,15 +174,27 @@ export default function FloorPlan({
     onPlaceTable(Math.round(clamped.x), Math.round(clamped.y));
   };
 
+  const handleSaveLayoutClick = async () => {
+    if (!onSaveLayout || !hasLayoutDraft) return;
+    try {
+      await onSaveLayout(draftPos);
+      setDraftPos({});
+    } catch {
+      /* draft kept for retry */
+    }
+  };
+
   const renderTable = (table: FloorTable) => {
     const raw = getPos(table);
     const selected =
       selectedTableId === table.id || selectedTableNumber === table.tableNumber;
     const fill = tableFill(table, selected, mode);
-    const canBook = mode === "view" && table.available && table.status !== "MAINTENANCE";
+    const canBook =
+      mode === "view" && !!table.available && table.status !== "MAINTENANCE";
     const isRect = table.shape === "rect";
     const isDragging = drag?.id === table.id;
     const isSaving = savingId === table.id;
+    const hasUnsavedMove = deferLayoutSave && !!draftPos[table.id];
 
     let chairs: ChairPoint[] = [];
     let cx: number;
@@ -214,8 +242,11 @@ export default function FloorPlan({
             height={h}
             rx={10}
             fill={fill}
-            stroke={selected ? "#fff" : "rgba(255,255,255,0.4)"}
-            strokeWidth={selected ? 3 : 1.5}
+            stroke={
+              hasUnsavedMove ? "#e8a838" : selected ? "#fff" : "rgba(255,255,255,0.4)"
+            }
+            strokeWidth={hasUnsavedMove ? 3 : selected ? 3 : 1.5}
+            strokeDasharray={hasUnsavedMove ? "6 3" : undefined}
           />
           <text
             x={cx}
@@ -272,8 +303,11 @@ export default function FloorPlan({
           cy={cy}
           r={r}
           fill={fill}
-          stroke={selected ? "#fff" : "rgba(255,255,255,0.4)"}
-          strokeWidth={selected ? 3 : 1.5}
+          stroke={
+            hasUnsavedMove ? "#e8a838" : selected ? "#fff" : "rgba(255,255,255,0.4)"
+          }
+          strokeWidth={hasUnsavedMove ? 3 : selected ? 3 : 1.5}
+          strokeDasharray={hasUnsavedMove ? "6 3" : undefined}
         />
         <text
           x={cx}
@@ -292,14 +326,61 @@ export default function FloorPlan({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#ebe6dc] bg-[#faf8f5] shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-[#ebe6dc] bg-[#faf8f5] shadow-sm">
       {mode === "edit" && (
         <div className="border-b border-[#ebe6dc] bg-white px-3 py-2 text-xs text-[#8a847a]">
           {placeMode
             ? "Нажмите на схему, чтобы поставить новый стол"
-            : "Перетащите стол · клик — выбрать"}
+            : deferLayoutSave
+              ? "Перетащите столы → ✓ сохранить, ✕ отменить"
+              : "Перетащите стол · клик — выбрать"}
         </div>
       )}
+
+      {hasLayoutDraft && (
+        <div className="absolute bottom-14 right-3 z-20 flex gap-1.5">
+          <button
+            type="button"
+            title="Сохранить"
+            aria-label="Сохранить расположение"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#8b7355] text-white shadow-md hover:bg-[#7a6549] disabled:opacity-50"
+            onClick={() => void handleSaveLayoutClick()}
+            disabled={savingLayout}
+          >
+            {savingLayout ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path
+                  d="M3 8.5L6.5 12L13 4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            title="Отменить"
+            aria-label="Отменить изменения"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#ebe6dc] bg-white text-[#8a847a] shadow-md hover:bg-[#faf8f5] disabled:opacity-50"
+            disabled={savingLayout}
+            onClick={() => setDraftPos({})}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+              <path
+                d="M3 3l8 8M11 3l-8 8"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <svg
         ref={svgRef}
         viewBox={`0 0 ${FLOOR_VIEW.width} ${FLOOR_VIEW.height}`}
@@ -346,11 +427,19 @@ export default function FloorPlan({
           <span className="h-3 w-3 rounded-full bg-[#b8b4ac]" /> Недоступен
         </span>
         {mode === "edit" && (
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 rounded-sm bg-[#d8cfc0] ring-1 ring-[#b8a99a]" /> Стул
-          </span>
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-3 rounded-sm bg-[#d8cfc0] ring-1 ring-[#b8a99a]" /> Стул
+            </span>
+            {deferLayoutSave && (
+              <span className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full border-2 border-dashed border-[#e8a838]" /> Не сохранено
+              </span>
+            )}
+          </>
         )}
       </div>
     </div>
   );
 }
+
