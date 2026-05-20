@@ -38,6 +38,8 @@ export interface DiningTable {
   tableNumber: number;
   capacity: number;
   status: string;
+  /** При запросе /admin/halls/…/tables с dateTime+duration */
+  available?: boolean;
   posX?: number;
   posY?: number;
   shape?: string;
@@ -71,6 +73,8 @@ export interface Reservation {
   username: string;
   tableId: number;
   tableNumber: number;
+  branchId?: number;
+  hallId?: number;
   branchName?: string;
   hallName?: string;
   reservationTime: string;

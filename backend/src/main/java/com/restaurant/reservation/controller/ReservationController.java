@@ -30,4 +30,10 @@ public class ReservationController {
         Long userId = SecurityUtils.currentUser().getId();
         return reservationService.getUserBookings(userId);
     }
+
+    @PostMapping("/users/me/bookings/{id}/cancel")
+    public ReservationDto cancelMyBooking(@PathVariable Long id) {
+        Long userId = SecurityUtils.currentUser().getId();
+        return reservationService.cancelMyBooking(userId, id);
+    }
 }

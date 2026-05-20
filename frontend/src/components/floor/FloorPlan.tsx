@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { circleChairs, rectChairs, type ChairPoint } from "@/lib/chairs";
-import { circleRadius, clampCenter, FLOOR_VIEW, rectSize, ROOM } from "@/lib/tableLayout";
+import {
+  circleRadius,
+  clampCenter,
+  FLOOR_VIEW,
+  rectSize,
+  ROOM,
+} from "@/lib/tableLayout";
 import type { FloorTable } from "./types";
 
 type Mode = "view" | "edit";
@@ -17,7 +23,11 @@ interface FloorPlanProps {
   selectedTableNumber?: number | null;
   onSelect?: (table: FloorTable) => void;
   /** Immediate save on drag end (legacy) */
-  onMoveTable?: (table: FloorTable, posX: number, posY: number) => void | Promise<void>;
+  onMoveTable?: (
+    table: FloorTable,
+    posX: number,
+    posY: number,
+  ) => void | Promise<void>;
   /** Defer save: drag updates draft, parent saves via onSaveLayout */
   deferLayoutSave?: boolean;
   onSaveLayout?: (draft: LayoutDraft) => void | Promise<void>;
@@ -26,12 +36,21 @@ interface FloorPlanProps {
   savingLayout?: boolean;
 }
 
+/** Свободен на слот · занят бронью на слот · обслуживание · выбран */
 function tableFill(table: FloorTable, selected: boolean, mode: Mode): string {
   if (selected) return "#7a6549";
   if (table.status === "MAINTENANCE") return "#b8b4ac";
-  if (mode === "view" && table.available === false) return "#c9a882";
-  if (table.status === "AVAILABLE" || table.available !== false) return "#8eb4c9";
-  return "#c9a882";
+  if (table.available === false) {
+    return mode === "edit" ? "#c2410c" : "#e11d48";
+  }
+  if (table.available === true && table.status === "AVAILABLE") {
+    return "#8eb4c9";
+  }
+  if (table.available === true) {
+    return "#94a3b8";
+  }
+  // слот ещё не подгрузился — не показываем как «свободен»
+  return "#cbd5e1";
 }
 
 function Chair({ point }: { point: ChairPoint }) {
@@ -75,7 +94,11 @@ export default function FloorPlan({
   const svgRef = useRef<SVGSVGElement>(null);
   const suppressClickRef = useRef(false);
   const dragMovedRef = useRef(false);
-  const [drag, setDrag] = useState<{ id: number; offsetX: number; offsetY: number } | null>(null);
+  const [drag, setDrag] = useState<{
+    id: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
   const [draftPos, setDraftPos] = useState<LayoutDraft>({});
   const [savingId, setSavingId] = useState<number | null>(null);
 
@@ -83,7 +106,7 @@ export default function FloorPlan({
 
   const getPos = useCallback(
     (t: FloorTable) => draftPos[t.id] ?? { x: t.posX, y: t.posY },
-    [draftPos]
+    [draftPos],
   );
 
   const endDragImmediate = useCallback(
@@ -107,7 +130,7 @@ export default function FloorPlan({
         setSavingId(null);
       }
     },
-    [onMoveTable]
+    [onMoveTable],
   );
 
   useEffect(() => {
@@ -121,9 +144,18 @@ export default function FloorPlan({
 
       const { x, y } = clientToSvg(svg, e.clientX, e.clientY);
       const isRect = table.shape === "rect";
-      const halfW = isRect ? rectSize(table.capacity).width / 2 : circleRadius(table.capacity);
-      const halfH = isRect ? rectSize(table.capacity).height / 2 : circleRadius(table.capacity);
-      const clamped = clampCenter(x - drag.offsetX, y - drag.offsetY, halfW, halfH);
+      const halfW = isRect
+        ? rectSize(table.capacity).width / 2
+        : circleRadius(table.capacity);
+      const halfH = isRect
+        ? rectSize(table.capacity).height / 2
+        : circleRadius(table.capacity);
+      const clamped = clampCenter(
+        x - drag.offsetX,
+        y - drag.offsetY,
+        halfW,
+        halfH,
+      );
 
       dragMovedRef.current = true;
       setDraftPos((d) => ({ ...d, [table.id]: clamped }));
@@ -135,9 +167,18 @@ export default function FloorPlan({
       if (svg && table) {
         const { x, y } = clientToSvg(svg, e.clientX, e.clientY);
         const isRect = table.shape === "rect";
-        const halfW = isRect ? rectSize(table.capacity).width / 2 : circleRadius(table.capacity);
-        const halfH = isRect ? rectSize(table.capacity).height / 2 : circleRadius(table.capacity);
-        const clamped = clampCenter(x - drag.offsetX, y - drag.offsetY, halfW, halfH);
+        const halfW = isRect
+          ? rectSize(table.capacity).width / 2
+          : circleRadius(table.capacity);
+        const halfH = isRect
+          ? rectSize(table.capacity).height / 2
+          : circleRadius(table.capacity);
+        const clamped = clampCenter(
+          x - drag.offsetX,
+          y - drag.offsetY,
+          halfW,
+          halfH,
+        );
         if (dragMovedRef.current) {
           suppressClickRef.current = true;
           if (deferLayoutSave) {
@@ -168,7 +209,8 @@ export default function FloorPlan({
   };
 
   const handleFloorClick = (e: React.MouseEvent<SVGRectElement>) => {
-    if (mode !== "edit" || !placeMode || !onPlaceTable || !svgRef.current) return;
+    if (mode !== "edit" || !placeMode || !onPlaceTable || !svgRef.current)
+      return;
     const { x, y } = clientToSvg(svgRef.current, e.clientX, e.clientY);
     const clamped = clampCenter(x, y, 28, 28);
     onPlaceTable(Math.round(clamped.x), Math.round(clamped.y));
@@ -191,10 +233,36 @@ export default function FloorPlan({
     const fill = tableFill(table, selected, mode);
     const canBook =
       mode === "view" && !!table.available && table.status !== "MAINTENANCE";
+    const bookedOnSlot =
+      table.available === false && table.status !== "MAINTENANCE";
+    const isDimmedUnbookable =
+      (mode === "view" && !canBook) ||
+      (mode === "edit" && table.status === "MAINTENANCE");
     const isRect = table.shape === "rect";
+    const isBookedSlotHighlight = bookedOnSlot && mode === "edit";
     const isDragging = drag?.id === table.id;
     const isSaving = savingId === table.id;
     const hasUnsavedMove = deferLayoutSave && !!draftPos[table.id];
+
+    const slotStroke = hasUnsavedMove
+      ? {
+          color: "#e8a838" as const,
+          width: 3,
+          dash: "6 3" as string | undefined,
+        }
+      : selected
+        ? { color: "#fff" as const, width: 3, dash: undefined }
+        : isBookedSlotHighlight
+          ? {
+              color: "rgba(255,255,255,0.92)" as const,
+              width: 2.5,
+              dash: "4 3" as string,
+            }
+          : {
+              color: "rgba(255,255,255,0.4)" as const,
+              width: 1.5,
+              dash: undefined,
+            };
 
     let chairs: ChairPoint[] = [];
     let cx: number;
@@ -212,8 +280,15 @@ export default function FloorPlan({
           key={table.id}
           filter="url(#table-shadow)"
           style={{
-            opacity: isSaving ? 0.7 : mode === "view" && !canBook ? 0.55 : 1,
-            cursor: mode === "edit" ? (isDragging ? "grabbing" : "grab") : canBook ? "pointer" : "not-allowed",
+            opacity: isSaving ? 0.7 : isDimmedUnbookable ? 0.55 : 1,
+            cursor:
+              mode === "edit"
+                ? isDragging
+                  ? "grabbing"
+                  : "grab"
+                : canBook
+                  ? "pointer"
+                  : "not-allowed",
           }}
           onPointerDown={(e) => {
             if (mode !== "edit") {
@@ -242,11 +317,9 @@ export default function FloorPlan({
             height={h}
             rx={10}
             fill={fill}
-            stroke={
-              hasUnsavedMove ? "#e8a838" : selected ? "#fff" : "rgba(255,255,255,0.4)"
-            }
-            strokeWidth={hasUnsavedMove ? 3 : selected ? 3 : 1.5}
-            strokeDasharray={hasUnsavedMove ? "6 3" : undefined}
+            stroke={slotStroke.color}
+            strokeWidth={slotStroke.width}
+            strokeDasharray={slotStroke.dash}
           />
           <text
             x={cx}
@@ -275,8 +348,15 @@ export default function FloorPlan({
         key={table.id}
         filter="url(#table-shadow)"
         style={{
-          opacity: isSaving ? 0.7 : mode === "view" && !canBook ? 0.55 : 1,
-          cursor: mode === "edit" ? (isDragging ? "grabbing" : "grab") : canBook ? "pointer" : "not-allowed",
+          opacity: isSaving ? 0.7 : isDimmedUnbookable ? 0.55 : 1,
+          cursor:
+            mode === "edit"
+              ? isDragging
+                ? "grabbing"
+                : "grab"
+              : canBook
+                ? "pointer"
+                : "not-allowed",
         }}
         onPointerDown={(e) => {
           if (mode !== "edit") {
@@ -303,11 +383,9 @@ export default function FloorPlan({
           cy={cy}
           r={r}
           fill={fill}
-          stroke={
-            hasUnsavedMove ? "#e8a838" : selected ? "#fff" : "rgba(255,255,255,0.4)"
-          }
-          strokeWidth={hasUnsavedMove ? 3 : selected ? 3 : 1.5}
-          strokeDasharray={hasUnsavedMove ? "6 3" : undefined}
+          stroke={slotStroke.color}
+          strokeWidth={slotStroke.width}
+          strokeDasharray={slotStroke.dash}
         />
         <text
           x={cx}
@@ -350,7 +428,13 @@ export default function FloorPlan({
             {savingLayout ? (
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
             ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden
+              >
                 <path
                   d="M3 8.5L6.5 12L13 4"
                   stroke="currentColor"
@@ -369,7 +453,13 @@ export default function FloorPlan({
             disabled={savingLayout}
             onClick={() => setDraftPos({})}
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden
+            >
               <path
                 d="M3 3l8 8M11 3l-8 8"
                 stroke="currentColor"
@@ -386,12 +476,18 @@ export default function FloorPlan({
         viewBox={`0 0 ${FLOOR_VIEW.width} ${FLOOR_VIEW.height}`}
         className={clsx(
           "h-auto w-full max-h-[min(72vh,520px)] touch-none",
-          placeMode && mode === "edit" && "cursor-crosshair"
+          placeMode && mode === "edit" && "cursor-crosshair",
         )}
         aria-label={mode === "edit" ? "Редактор схемы зала" : "Схема зала"}
       >
         <defs>
-          <filter id="table-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter
+            id="table-shadow"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
             <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.12" />
           </filter>
         </defs>
@@ -408,8 +504,23 @@ export default function FloorPlan({
           onClick={handleFloorClick}
           className={placeMode ? "cursor-crosshair" : undefined}
         />
-        <circle cx={300} cy={200} r={20} fill="#dce8dc" stroke="#c5d8c5" strokeWidth={1} pointerEvents="none" />
-        <text x={300} y={205} textAnchor="middle" fontSize={14} fill="#6b8f6b" pointerEvents="none">
+        <circle
+          cx={300}
+          cy={200}
+          r={20}
+          fill="#dce8dc"
+          stroke="#c5d8c5"
+          strokeWidth={1}
+          pointerEvents="none"
+        />
+        <text
+          x={300}
+          y={205}
+          textAnchor="middle"
+          fontSize={14}
+          fill="#6b8f6b"
+          pointerEvents="none"
+        >
           🌿
         </text>
 
@@ -421,7 +532,13 @@ export default function FloorPlan({
           <span className="h-3 w-3 rounded-full bg-[#8eb4c9]" /> Свободен
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-[#c9a882]" /> Занят
+          <span
+            className={clsx(
+              "h-3 w-3 rounded-full",
+              mode === "edit" ? "bg-[#c2410c]" : "bg-[#e11d48]",
+            )}
+          />{" "}
+          Занят на слот
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-full bg-[#b8b4ac]" /> Недоступен
@@ -429,11 +546,13 @@ export default function FloorPlan({
         {mode === "edit" && (
           <>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-3 rounded-sm bg-[#d8cfc0] ring-1 ring-[#b8a99a]" /> Стул
+              <span className="inline-block h-2 w-3 rounded-sm bg-[#d8cfc0] ring-1 ring-[#b8a99a]" />{" "}
+              Стул
             </span>
             {deferLayoutSave && (
               <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-full border-2 border-dashed border-[#e8a838]" /> Не сохранено
+                <span className="h-3 w-3 rounded-full border-2 border-dashed border-[#e8a838]" />{" "}
+                Не сохранено
               </span>
             )}
           </>
@@ -442,4 +561,3 @@ export default function FloorPlan({
     </div>
   );
 }
-

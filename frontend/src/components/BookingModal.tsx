@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getErrorMessage } from "@/lib/api";
+import NumericInput from "@/components/NumericInput";
 import type { DiningTableFloor } from "@/types";
 
 interface BookingModalProps {
@@ -42,7 +43,7 @@ export default function BookingModal({ table, guestCount: initial, onClose, onCo
         <p className="mb-4 text-sm text-[#8a847a]">До {table.capacity} гостей</p>
         <label className="mb-4 block">
           <span className="label">Гостей</span>
-          <input type="number" min={1} max={table.capacity} className="input-field" value={guests} onChange={(e) => setGuests(Number(e.target.value))} />
+          <NumericInput min={1} max={table.capacity} value={guests} onValueChange={setGuests} />
         </label>
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <button type="button" disabled={loading} onClick={submit} className="btn-primary">

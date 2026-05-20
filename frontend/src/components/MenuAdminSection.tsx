@@ -10,6 +10,7 @@ import {
   updateMenuItem,
   updateMenuItemImage,
 } from "@/lib/api";
+import NumericInput from "@/components/NumericInput";
 import { formatPrice } from "@/lib/currency";
 import type { MenuItem } from "@/types";
 
@@ -130,7 +131,7 @@ export default function MenuAdminSection() {
               type="number"
               min={1}
               step={1}
-              className="input-field"
+              className="input-field input-number"
               value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
               required
@@ -138,12 +139,7 @@ export default function MenuAdminSection() {
           </label>
           <label className="block">
             <span className="label">Порядок</span>
-            <input
-              type="number"
-              className="input-field"
-              value={form.sortOrder}
-              onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
-            />
+            <NumericInput min={0} value={form.sortOrder} onValueChange={(n) => setForm({ ...form, sortOrder: n })} />
           </label>
         </div>
         <label className="block">

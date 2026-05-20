@@ -61,6 +61,20 @@ const API_MESSAGES_RU: Record<string, string> = {
   "Reservation time must be in the future": "Выберите дату и время в будущем",
   "User not found": "Пользователь не найден",
   "Access denied": "Нет доступа",
+  "Cannot delete branch with reservations. Cancel or complete bookings first.":
+    "Нельзя удалить филиал: есть бронирования на столы этого филиала. Сначала отмените или завершите их во вкладке «Брони».",
+  "Cannot delete hall with reservations. Cancel or complete bookings first.":
+    "Нельзя удалить зал: есть бронирования на столы этого зала. Сначала отмените или завершите их во вкладке «Брони».",
+  "Cannot delete table with reservations. Cancel or complete bookings first.":
+    "Нельзя удалить стол: на него есть бронирования. Сначала отмените или завершите их во вкладке «Брони».",
+  "Cannot delete: data is still linked (for example active reservations on tables in this hall).":
+    "Нельзя удалить: данные всё ещё связаны (например, есть брони на столах этого зала). Сначала отмените или завершите брони.",
+  // Старый текст API (если backend не пересобран) — подсказка перезапустить сервер
+  "Cannot delete branch with halls. Remove halls first.":
+    "Сервер ещё на старой версии: сначала удалите залы вручную или перезапустите backend (cd backend && mvn spring-boot:run), чтобы удалять филиал целиком при отсутствии броней.",
+  "Cannot delete hall with tables. Remove tables first.":
+    "Сервер ещё на старой версии: сначала удалите столы или перезапустите backend — тогда зал удалится вместе со столами, если нет броней.",
+  "Reservation cannot be cancelled": "Эту бронь уже нельзя отменить.",
 };
 
 const FIELD_LABELS_RU: Record<string, string> = {
@@ -143,6 +157,11 @@ export async function fetchMyBookings() {
   return data;
 }
 
+export async function cancelMyBooking(id: number) {
+  const { data } = await api.post<Reservation>(`/api/v1/users/me/bookings/${id}/cancel`);
+  return data;
+}
+
 // Admin — bookings
 export async function fetchAllBookings() {
   const { data } = await api.get<Reservation[]>("/api/v1/admin/bookings");
@@ -195,8 +214,19 @@ export async function deleteHall(id: number) {
 }
 
 // Admin — tables
-export async function fetchAdminTables(hallId: number) {
-  const { data } = await api.get<DiningTable[]>(`/api/v1/admin/halls/${hallId}/tables`);
+export async function fetchAdminTables(
+  hallId: number,
+  slot?: { dateTime: string; duration?: number; guestCount?: number },
+) {
+  const { data } = await api.get<DiningTable[]>(`/api/v1/admin/halls/${hallId}/tables`, {
+    params: slot
+      ? {
+          dateTime: slot.dateTime,
+          duration: slot.duration ?? 90,
+          ...(slot.guestCount != null ? { guestCount: slot.guestCount } : {}),
+        }
+      : undefined,
+  });
   return data;
 }
 

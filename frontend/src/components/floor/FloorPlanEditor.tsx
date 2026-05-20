@@ -1,11 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+import DateTimePicker from "@/components/DateTimePicker";
+import NumericInput from "@/components/NumericInput";
 import FloorPlan, { type LayoutDraft } from "@/components/floor/FloorPlan";
-import TableEditPanel, { type TableEditValues } from "@/components/floor/TableEditPanel";
+import TableEditPanel, {
+  type TableEditValues,
+} from "@/components/floor/TableEditPanel";
 import type { FloorTable } from "@/components/floor/types";
-import { createTable, deleteTable, getErrorMessage, updateHallLayout, updateTable } from "@/lib/api";
+import {
+  createTable,
+  deleteTable,
+  fetchAdminTables,
+  getErrorMessage,
+  updateHallLayout,
+  updateTable,
+} from "@/lib/api";
+import { localDateTimeParts, toApiDateTime } from "@/lib/datetime";
+import { subscribeHallAvailability } from "@/lib/realtime";
 import type { DiningTable } from "@/types";
 
 interface FloorPlanEditorProps {
@@ -29,8 +42,22 @@ function toFloorTable(t: DiningTable): FloorTable {
     posX: t.posX ?? 200,
     posY: t.posY ?? 200,
     shape: t.shape ?? "circle",
-    available: t.status === "AVAILABLE",
   };
+}
+
+/** Позиции из админских столов, признак «свободен на интервал» — только из API слота (не из status стола). */
+function mergeToFloorTables(
+  tables: DiningTable[],
+  availability: Record<number, boolean> | null,
+): FloorTable[] {
+  return tables.map((t) => {
+    const base = toFloorTable(t);
+    if (availability === null) {
+      return { ...base, available: undefined };
+    }
+    const slotFree = availability[t.id] === true;
+    return { ...base, available: slotFree };
+  });
 }
 
 export default function FloorPlanEditor({
@@ -45,7 +72,64 @@ export default function FloorPlanEditor({
   const [error, setError] = useState<string | null>(null);
   const [savingLayout, setSavingLayout] = useState(false);
 
-  const floorTables = tables.map(toFloorTable);
+  const [slotDate, setSlotDate] = useState(() => localDateTimeParts().date);
+  const [slotTime, setSlotTime] = useState(() => localDateTimeParts().time);
+  const [slotDuration, setSlotDuration] = useState(90);
+  const [availability, setAvailability] = useState<Record<
+    number,
+    boolean
+  > | null>(null);
+  const [loadingSlot, setLoadingSlot] = useState(false);
+  const [slotError, setSlotError] = useState<string | null>(null);
+
+  const tableIdsKey = useMemo(
+    () =>
+      [...tables]
+        .map((t) => t.id)
+        .sort((a, b) => a - b)
+        .join(","),
+    [tables],
+  );
+
+  useEffect(() => {
+    const { date, time } = localDateTimeParts();
+    setSlotDate(date);
+    setSlotTime(time);
+    setAvailability(null);
+  }, [hallId]);
+
+  const loadSlotAvailability = useCallback(async () => {
+    if (!hallId) return;
+    setLoadingSlot(true);
+    setSlotError(null);
+    try {
+      const data = await fetchAdminTables(hallId, {
+        dateTime: toApiDateTime(slotDate, slotTime),
+        duration: slotDuration,
+      });
+      const rec: Record<number, boolean> = {};
+      for (const row of data) {
+        rec[row.id] = row.available === true;
+      }
+      setAvailability(rec);
+    } catch (e) {
+      setAvailability(null);
+      setSlotError(getErrorMessage(e));
+    } finally {
+      setLoadingSlot(false);
+    }
+  }, [hallId, slotDate, slotTime, slotDuration, tableIdsKey]);
+
+  useEffect(() => {
+    loadSlotAvailability();
+  }, [loadSlotAvailability]);
+
+  useEffect(() => {
+    if (!hallId) return;
+    return subscribeHallAvailability(hallId, loadSlotAvailability);
+  }, [hallId, loadSlotAvailability]);
+
+  const floorTables = mergeToFloorTables(tables, availability);
   const selected = tables.find((t) => t.id === selectedId);
 
   const handleSaveLayout = async (draft: LayoutDraft) => {

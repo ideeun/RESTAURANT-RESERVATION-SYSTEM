@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Select from "@/components/Select";
+import NumericInput from "@/components/NumericInput";
 import { TABLE_STATUS_LABELS } from "@/lib/tableLayout";
 import { getErrorMessage } from "@/lib/api";
 import type { DiningTable } from "@/types";
@@ -74,24 +75,11 @@ export default function TableEditPanel({ table, onSave, onDelete, onClose }: Tab
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="label">№ стола</span>
-          <input
-            type="number"
-            min={1}
-            className="input-field"
-            value={draft.tableNumber}
-            onChange={(e) => setDraft({ ...draft, tableNumber: Number(e.target.value) })}
-          />
+          <NumericInput min={1} value={draft.tableNumber} onValueChange={(n) => setDraft({ ...draft, tableNumber: n })} />
         </label>
         <label className="block">
           <span className="label">Мест (стульев)</span>
-          <input
-            type="number"
-            min={1}
-            max={20}
-            className="input-field"
-            value={draft.capacity}
-            onChange={(e) => setDraft({ ...draft, capacity: Number(e.target.value) })}
-          />
+          <NumericInput min={1} max={20} value={draft.capacity} onValueChange={(n) => setDraft({ ...draft, capacity: n })} />
         </label>
         <label className="block">
           <span className="label">Форма</span>

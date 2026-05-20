@@ -3,9 +3,13 @@ package com.restaurant.reservation.service;
 import com.restaurant.reservation.dto.BranchDto;
 import com.restaurant.reservation.dto.BranchRequest;
 import com.restaurant.reservation.entity.Branch;
+import com.restaurant.reservation.entity.Hall;
+import com.restaurant.reservation.exception.BusinessException;
 import com.restaurant.reservation.exception.ResourceNotFoundException;
 import com.restaurant.reservation.repository.BranchRepository;
+import com.restaurant.reservation.repository.DiningTableRepository;
 import com.restaurant.reservation.repository.HallRepository;
+import com.restaurant.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +22,9 @@ public class BranchService {
 
     private final BranchRepository branchRepository;
     private final HallRepository hallRepository;
+    private final DiningTableRepository diningTableRepository;
+    private final ReservationRepository reservationRepository;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional(readOnly = true)
     public List<BranchDto> findAll() {
@@ -53,9 +60,14 @@ public class BranchService {
         if (!branchRepository.existsById(id)) {
             throw new ResourceNotFoundException("Branch not found");
         }
-        if (!hallRepository.findByBranchIdOrderByNameAsc(id).isEmpty()) {
-            throw new com.restaurant.reservation.exception.BusinessException(
-                    "Cannot delete branch with halls. Remove halls first.");
+        if (reservationRepository.countByBranchId(id) > 0) {
+            throw new BusinessException(
+                    "Cannot delete branch with reservations. Cancel or complete bookings first.");
+        }
+        for (Hall hall : hallRepository.findByBranchIdOrderByNameAsc(id)) {
+            diningTableRepository.deleteAllByHallId(hall.getId());
+            realtimeEventPublisher.hallLayoutUpdated(hall.getId());
+            hallRepository.deleteById(hall.getId());
         }
         branchRepository.deleteById(id);
     }

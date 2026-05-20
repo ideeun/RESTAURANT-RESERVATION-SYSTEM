@@ -7,6 +7,7 @@ import com.restaurant.reservation.exception.BusinessException;
 import com.restaurant.reservation.exception.ResourceNotFoundException;
 import com.restaurant.reservation.repository.DiningTableRepository;
 import com.restaurant.reservation.repository.HallRepository;
+import com.restaurant.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,8 @@ public class HallService {
     private final HallRepository hallRepository;
     private final BranchService branchService;
     private final DiningTableRepository diningTableRepository;
+    private final ReservationRepository reservationRepository;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional(readOnly = true)
     public List<HallDto> findByBranch(Long branchId) {
@@ -56,9 +59,12 @@ public class HallService {
         if (!hallRepository.existsById(id)) {
             throw new ResourceNotFoundException("Hall not found");
         }
-        if (!diningTableRepository.findByHallIdOrderByTableNumberAsc(id).isEmpty()) {
-            throw new BusinessException("Cannot delete hall with tables. Remove tables first.");
+        if (reservationRepository.countByHallId(id) > 0) {
+            throw new BusinessException(
+                    "Cannot delete hall with reservations. Cancel or complete bookings first.");
         }
+        diningTableRepository.deleteAllByHallId(id);
+        realtimeEventPublisher.hallLayoutUpdated(id);
         hallRepository.deleteById(id);
     }
 

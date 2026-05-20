@@ -35,7 +35,8 @@ export default function BottomNav() {
           const active =
             pathname === href ||
             (href === "/book" && pathname.startsWith("/book")) ||
-            (href === "/menu" && pathname.startsWith("/menu"));
+            (href === "/menu" && pathname.startsWith("/menu")) ||
+            (href === "/dashboard" && pathname.startsWith("/dashboard"));
           return (
             <Link
               key={href}

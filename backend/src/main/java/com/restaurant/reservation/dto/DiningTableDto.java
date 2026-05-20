@@ -1,5 +1,6 @@
 package com.restaurant.reservation.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.restaurant.reservation.entity.DiningTable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +22,15 @@ public class DiningTableDto {
     private int posY;
     private String shape;
 
+    /** Свободен на интервал dateTime+duration; только если запрошен слот (см. GET admin halls/…/tables). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean available;
+
     public static DiningTableDto from(DiningTable table) {
+        return from(table, null);
+    }
+
+    public static DiningTableDto from(DiningTable table, Boolean availableOnSlot) {
         return DiningTableDto.builder()
                 .id(table.getId())
                 .hallId(table.getHall().getId())
@@ -34,6 +43,7 @@ public class DiningTableDto {
                 .posX(table.getPosX())
                 .posY(table.getPosY())
                 .shape(table.getShape())
+                .available(availableOnSlot)
                 .build();
     }
 }

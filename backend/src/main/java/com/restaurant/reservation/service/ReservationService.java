@@ -82,6 +82,25 @@ public class ReservationService {
     }
 
     @Transactional
+    public ReservationDto cancelMyBooking(Long userId, Long bookingId) {
+        Reservation reservation = reservationRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
+        if (!reservation.getUser().getId().equals(userId)) {
+            throw new BusinessException("Access denied");
+        }
+        ReservationStatus st = reservation.getStatus();
+        if (st == ReservationStatus.CANCELLED || st == ReservationStatus.COMPLETED) {
+            throw new BusinessException("Reservation cannot be cancelled");
+        }
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        Reservation saved = reservationRepository.save(reservation);
+        ReservationDto dto = ReservationDto.from(saved);
+        Long hallId = saved.getTable().getHall().getId();
+        realtimeEventPublisher.reservationUpdated(dto, hallId);
+        return dto;
+    }
+
+    @Transactional
     public ReservationDto updateStatus(Long bookingId, UpdateReservationStatusRequest request) {
         Reservation reservation = reservationRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));

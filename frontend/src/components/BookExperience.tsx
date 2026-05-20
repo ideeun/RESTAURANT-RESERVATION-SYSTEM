@@ -9,6 +9,7 @@ import FloorPlanMap from "@/components/FloorPlanMap";
 import Select from "@/components/Select";
 import BookingModal from "@/components/BookingModal";
 import DateTimePicker from "@/components/DateTimePicker";
+import NumericInput from "@/components/NumericInput";
 import {
   createReservation,
   fetchBranches,
@@ -117,7 +118,7 @@ export default function BookExperience() {
           <Select
             value={branchId ?? ""}
             onChange={(id) => setBranchId(id)}
-            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            options={branches.map((b) => ({ value: b.id, label: `№${b.id} · ${b.name}` }))}
             placeholder="Выберите филиал"
           />
           {branch?.address && <p className="mt-1 text-xs text-[#8a847a]">{branch.address}</p>}
@@ -128,7 +129,7 @@ export default function BookExperience() {
           <Select
             value={hallId ?? ""}
             onChange={(id) => setHallId(id)}
-            options={halls.map((h) => ({ value: h.id, label: h.name }))}
+            options={halls.map((h) => ({ value: h.id, label: `№${h.id} · ${h.name}` }))}
             disabled={!halls.length}
             placeholder="Выберите зал"
           />
@@ -163,11 +164,11 @@ export default function BookExperience() {
             <div className="grid grid-cols-2 gap-3">
               <label>
                 <span className="label">Длительность</span>
-                <input type="number" min={30} className="input-field" value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+                <NumericInput min={30} step={15} value={duration} onValueChange={setDuration} />
               </label>
               <label>
                 <span className="label">Гостей</span>
-                <input type="number" min={1} className="input-field" value={guestCount} onChange={(e) => setGuestCount(Number(e.target.value))} />
+                <NumericInput min={1} max={50} value={guestCount} onValueChange={setGuestCount} />
               </label>
             </div>
           </div>

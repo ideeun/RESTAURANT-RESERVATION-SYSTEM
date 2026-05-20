@@ -55,6 +55,19 @@
     @apply w-full rounded-xl border border-[#e5ddd0] bg-white px-4 py-2.5 text-[#3d3a36] outline-none transition focus:border-[#c4b5a0] focus:ring-2 focus:ring-[#c4b5a0]/25;
   }
 
+  /* Числовые поля: видны стрелки шага; без глобального скрытия как у text */
+  .input-number {
+    appearance: auto;
+    -moz-appearance: number-input;
+  }
+
+  .input-number::-webkit-outer-spin-button,
+  .input-number::-webkit-inner-spin-button {
+    opacity: 1;
+    height: auto;
+    margin: 0;
+  }
+
   .label {
     @apply mb-1 block text-xs font-medium uppercase tracking-wide text-[#8a847a];
   }

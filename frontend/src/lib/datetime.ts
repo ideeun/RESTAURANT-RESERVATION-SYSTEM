@@ -12,3 +12,12 @@ export function defaultSearchDate(): string {
 export function defaultSearchTime(): string {
   return "19:00";
 }
+
+/** Локальные дата (yyyy-MM-dd) и время (HH:mm) для полей выбора интервала. */
+export function localDateTimeParts(d: Date = new Date()): { date: string; time: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}

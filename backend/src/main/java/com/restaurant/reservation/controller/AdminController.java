@@ -10,10 +10,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -88,8 +90,14 @@ public class AdminController {
 
     // --- Tables (столики) ---
     @GetMapping("/halls/{hallId}/tables")
-    public List<DiningTableDto> tablesByHall(@PathVariable Long hallId) {
-        return diningTableService.findByHall(hallId);
+    public List<DiningTableDto> tablesByHall(
+            @PathVariable Long hallId,
+            @RequestParam(required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    LocalDateTime dateTime,
+            @RequestParam(required = false) Integer duration,
+            @RequestParam(required = false) Integer guestCount) {
+        return diningTableService.findByHall(hallId, dateTime, duration, guestCount);
     }
 
     @GetMapping("/tables")

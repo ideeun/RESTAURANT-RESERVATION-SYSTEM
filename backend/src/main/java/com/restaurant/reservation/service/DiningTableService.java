@@ -31,9 +31,23 @@ public class DiningTableService {
     private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional(readOnly = true)
-    public List<DiningTableDto> findByHall(Long hallId) {
-        return diningTableRepository.findByHallIdOrderByTableNumberAsc(hallId).stream()
-                .map(DiningTableDto::from)
+    public List<DiningTableDto> findByHall(
+            Long hallId,
+            LocalDateTime dateTime,
+            Integer durationMinutes,
+            Integer guestCount) {
+        List<DiningTable> tables = diningTableRepository.findByHallIdOrderByTableNumberAsc(hallId);
+        if (dateTime == null) {
+            return tables.stream().map(DiningTableDto::from).toList();
+        }
+        int duration =
+                durationMinutes != null && durationMinutes > 0 ? durationMinutes : 90;
+        Set<Long> availableIds =
+                findAvailable(hallId, dateTime, duration, guestCount).stream()
+                        .map(DiningTableDto::getId)
+                        .collect(Collectors.toSet());
+        return tables.stream()
+                .map(t -> DiningTableDto.from(t, availableIds.contains(t.getId())))
                 .toList();
     }
 
@@ -124,6 +138,10 @@ public class DiningTableService {
 
     @Transactional
     public void delete(Long id) {
+        if (reservationRepository.countByTableId(id) > 0) {
+            throw new BusinessException(
+                    "Cannot delete table with reservations. Cancel or complete bookings first.");
+        }
         DiningTable table = findEntity(id);
         Long hallId = table.getHall().getId();
         diningTableRepository.delete(table);

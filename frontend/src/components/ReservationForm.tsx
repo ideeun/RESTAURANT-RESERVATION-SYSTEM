@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DiningTable } from "@/types";
 import DateTimePicker from "./DateTimePicker";
+import NumericInput from "./NumericInput";
 
 interface ReservationFormProps {
   table: DiningTable | null;
@@ -64,24 +65,15 @@ export default function ReservationForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-sm font-medium">Длительность (мин)</span>
-          <input
-            type="number"
-            min={30}
-            step={15}
-            className="input-field"
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-          />
+          <NumericInput min={30} step={15} value={duration} onValueChange={setDuration} />
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium">Гостей</span>
-          <input
-            type="number"
+          <NumericInput
             min={1}
             max={table?.capacity ?? 20}
-            className="input-field"
             value={guestCount}
-            onChange={(e) => setGuestCount(Number(e.target.value))}
+            onValueChange={setGuestCount}
           />
         </label>
       </div>

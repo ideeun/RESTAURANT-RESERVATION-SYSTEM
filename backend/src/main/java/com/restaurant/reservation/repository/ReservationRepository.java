@@ -40,4 +40,22 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    @Query(value = "SELECT COUNT(*) FROM reservations r WHERE r.table_id = :tableId", nativeQuery = true)
+    long countByTableId(@Param("tableId") Long tableId);
+
+    @Query(value = """
+        SELECT COUNT(*) FROM reservations r
+        JOIN dining_tables dt ON r.table_id = dt.id
+        WHERE dt.hall_id = :hallId
+        """, nativeQuery = true)
+    long countByHallId(@Param("hallId") Long hallId);
+
+    @Query(value = """
+        SELECT COUNT(*) FROM reservations r
+        JOIN dining_tables dt ON r.table_id = dt.id
+        JOIN halls h ON dt.hall_id = h.id
+        WHERE h.branch_id = :branchId
+        """, nativeQuery = true)
+    long countByBranchId(@Param("branchId") Long branchId);
 }

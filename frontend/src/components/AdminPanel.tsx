@@ -23,9 +23,34 @@ import Select from "@/components/Select";
 import StatusSelect from "@/components/StatusSelect";
 import FloorPlanEditor from "@/components/floor/FloorPlanEditor";
 import MenuAdminSection from "@/components/MenuAdminSection";
+import AdminConfirmModal from "@/components/AdminConfirmModal";
+import NumericInput from "@/components/NumericInput";
 import { nextTablePosition, TABLE_STATUS_LABELS } from "@/lib/tableLayout";
 
+function bookingCountForBranch(bookings: Reservation[], branchId: number) {
+  return bookings.filter((x) => x.branchId === branchId).length;
+}
+
+function bookingCountForHall(bookings: Reservation[], hallId: number) {
+  return bookings.filter((x) => x.hallId === hallId).length;
+}
+
+function bookingCountForTable(bookings: Reservation[], tableId: number) {
+  return bookings.filter((x) => x.tableId === tableId).length;
+}
+
 type Tab = "bookings" | "branches" | "halls" | "tables" | "menu";
+
+type AdminDeleteModal =
+  | null
+  | {
+      title: string;
+      message: string;
+      variant: "confirm" | "alert";
+      danger?: boolean;
+      confirmLabel?: string;
+      onConfirm?: () => void | Promise<void>;
+    };
 
 function AdminPanelContent() {
   const [tab, setTab] = useState<Tab>("bookings");
@@ -48,6 +73,8 @@ function AdminPanelContent() {
     status: "AVAILABLE",
     shape: "circle",
   });
+
+  const [deleteModal, setDeleteModal] = useState<AdminDeleteModal>(null);
 
   const refreshBookings = () => fetchAllBookings().then(setBookings).catch((e) => setError(getErrorMessage(e)));
   const refreshBranches = () =>
@@ -87,7 +114,14 @@ function AdminPanelContent() {
       setTables([]);
       return;
     }
-    fetchAdminTables(selectedHallId).then(setTables).catch((e) => setError(getErrorMessage(e)));
+    fetchAdminTables(selectedHallId)
+      .then((list) => {
+        setTables(list);
+        const next =
+          (list.length ? Math.max(...list.map((t) => t.tableNumber)) : 0) + 1;
+        setTableForm((f) => ({ ...f, tableNumber: next }));
+      })
+      .catch((e) => setError(getErrorMessage(e)));
   }, [selectedHallId]);
 
   useEffect(() => {
@@ -115,6 +149,17 @@ function AdminPanelContent() {
 
   return (
     <div className="space-y-5 pb-6">
+      <AdminConfirmModal
+        open={deleteModal !== null}
+        title={deleteModal?.title ?? ""}
+        message={deleteModal?.message ?? ""}
+        variant={deleteModal?.variant ?? "alert"}
+        danger={deleteModal?.danger}
+        confirmLabel={deleteModal?.confirmLabel}
+        onClose={() => setDeleteModal(null)}
+        onConfirm={deleteModal?.onConfirm}
+      />
+
       <h1 className="text-2xl font-semibold">Админ-панель</h1>
       {error && <p className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>}
 
@@ -138,7 +183,10 @@ function AdminPanelContent() {
               <div className="min-w-0 flex-1 text-sm">
                 <p className="font-medium">#{b.id} · {b.username}</p>
                 <p className="text-[#8a847a]">
-                  {b.branchName} · {b.hallName} · стол {b.tableNumber}
+                  {b.branchId != null ? `Филиал №${b.branchId} · ` : ""}{b.branchName}
+                  {" · "}
+                  {b.hallId != null ? `Зал №${b.hallId} · ` : ""}{b.hallName}
+                  {" · "}стол {b.tableNumber}
                 </p>
                 <p className="text-[#8a847a]">{format(parseISO(b.reservationTime), "dd.MM.yyyy HH:mm")}</p>
               </div>
@@ -175,10 +223,53 @@ function AdminPanelContent() {
             {branches.map((b) => (
               <li key={b.id} className="card flex justify-between gap-2">
                 <div>
-                  <p className="font-medium">{b.name}</p>
+                  <p className="font-medium">
+                    <span className="text-[#8b7355]">№{b.id}</span> · {b.name}
+                  </p>
                   <p className="text-xs text-[#8a847a]">{b.address}</p>
                 </div>
-                <button type="button" className="btn-danger" onClick={async () => { if (confirm("Удалить филиал?")) { await deleteBranch(b.id); refreshBranches(); } }}>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={async () => {
+                    const nBook = bookingCountForBranch(bookings, b.id);
+                    if (nBook > 0) {
+                      setDeleteModal({
+                        variant: "alert",
+                        title: "Удаление невозможно",
+                        message: `Нельзя удалить филиал «${b.name}»: есть ${nBook} бронирований. Отмените или завершите их во вкладке «Брони», затем повторите удаление.`,
+                      });
+                      return;
+                    }
+                    let branchHalls: Hall[];
+                    try {
+                      setError(null);
+                      branchHalls = await fetchAdminHalls(b.id);
+                    } catch (e) {
+                      setError(getErrorMessage(e));
+                      return;
+                    }
+                    const hasChildren = branchHalls.length > 0;
+                    setDeleteModal({
+                      variant: "confirm",
+                      danger: true,
+                      title: hasChildren ? "Удалить филиал со всеми залами?" : "Удалить филиал?",
+                      message: hasChildren
+                        ? `У филиала «${b.name}» ${branchHalls.length} зал(ов). Все залы и столы будут удалены безвозвратно.`
+                        : `Филиал «${b.name}» будет удалён безвозвратно.`,
+                      confirmLabel: "Удалить",
+                      onConfirm: async () => {
+                        try {
+                          setError(null);
+                          await deleteBranch(b.id);
+                          await refreshBranches();
+                        } catch (e) {
+                          setError(getErrorMessage(e));
+                        }
+                      },
+                    });
+                  }}
+                >
                   Удалить
                 </button>
               </li>
@@ -195,7 +286,7 @@ function AdminPanelContent() {
               setSelectedBranchId(id);
               setSelectedHallId(null);
             }}
-            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            options={branches.map((b) => ({ value: b.id, label: `№${b.id} · ${b.name}` }))}
             placeholder="Филиал"
           />
           {selectedBranchId && (
@@ -217,8 +308,51 @@ function AdminPanelContent() {
           <ul className="space-y-2">
             {halls.map((h) => (
               <li key={h.id} className="card flex justify-between">
-                <span className="font-medium">{h.name}</span>
-                <button type="button" className="btn-danger" onClick={async () => { if (confirm("Удалить зал?")) { await deleteHall(h.id); if (selectedBranchId) fetchAdminHalls(selectedBranchId).then(setHalls); } }}>
+                <span className="font-medium">
+                  <span className="text-[#8b7355]">№{h.id}</span> · {h.name}
+                </span>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={async () => {
+                    const nBook = bookingCountForHall(bookings, h.id);
+                    if (nBook > 0) {
+                      setDeleteModal({
+                        variant: "alert",
+                        title: "Удаление невозможно",
+                        message: `Нельзя удалить зал «${h.name}»: есть ${nBook} бронирований. Отмените или завершите их во вкладке «Брони», затем повторите удаление.`,
+                      });
+                      return;
+                    }
+                    let hallTables: DiningTable[];
+                    try {
+                      setError(null);
+                      hallTables = selectedHallId === h.id ? tables : await fetchAdminTables(h.id);
+                    } catch (e) {
+                      setError(getErrorMessage(e));
+                      return;
+                    }
+                    const hasTables = hallTables.length > 0;
+                    setDeleteModal({
+                      variant: "confirm",
+                      danger: true,
+                      title: hasTables ? "Удалить зал со всеми столами?" : "Удалить зал?",
+                      message: hasTables
+                        ? `В зале «${h.name}» ${hallTables.length} стол(ов). Они будут удалены безвозвратно.`
+                        : `Зал «${h.name}» будет удалён безвозвратно.`,
+                      confirmLabel: "Удалить",
+                      onConfirm: async () => {
+                        try {
+                          setError(null);
+                          await deleteHall(h.id);
+                          if (selectedBranchId) await fetchAdminHalls(selectedBranchId).then(setHalls);
+                        } catch (e) {
+                          setError(getErrorMessage(e));
+                        }
+                      },
+                    });
+                  }}
+                >
                   Удалить
                 </button>
               </li>
@@ -238,13 +372,13 @@ function AdminPanelContent() {
                 setSelectedBranchId(id);
                 setSelectedHallId(null);
               }}
-              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              options={branches.map((b) => ({ value: b.id, label: `№${b.id} · ${b.name}` }))}
               placeholder="Филиал"
             />
             <Select
               value={selectedHallId ?? ""}
               onChange={(id) => setSelectedHallId(id)}
-              options={halls.map((h) => ({ value: h.id, label: h.name }))}
+              options={halls.map((h) => ({ value: h.id, label: `№${h.id} · ${h.name}` }))}
               placeholder="Зал"
             />
           </div>
@@ -286,25 +420,19 @@ function AdminPanelContent() {
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="label">№ стола</span>
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
-                    className="input-field"
                     value={tableForm.tableNumber}
-                    onChange={(e) => setTableForm({ ...tableForm, tableNumber: Number(e.target.value) })}
-                    required
+                    onValueChange={(n) => setTableForm({ ...tableForm, tableNumber: n })}
                   />
                 </label>
                 <label className="block">
                   <span className="label">Мест</span>
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     max={20}
-                    className="input-field"
                     value={tableForm.capacity}
-                    onChange={(e) => setTableForm({ ...tableForm, capacity: Number(e.target.value) })}
-                    required
+                    onValueChange={(n) => setTableForm({ ...tableForm, capacity: n })}
                   />
                 </label>
                 <label className="block">
@@ -343,7 +471,37 @@ function AdminPanelContent() {
                     · {t.shape === "rect" ? "прямоугольник" : "круг"} · {TABLE_STATUS_LABELS[t.status] ?? t.status}
                   </span>
                 </span>
-                <button type="button" className="btn-danger" onClick={async () => { if (confirm("Удалить стол?")) { await deleteTable(t.id); if (selectedHallId) fetchAdminTables(selectedHallId).then(setTables); } }}>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => {
+                    const nBook = bookingCountForTable(bookings, t.id);
+                    if (nBook > 0) {
+                      setDeleteModal({
+                        variant: "alert",
+                        title: "Удаление невозможно",
+                        message: `Нельзя удалить стол №${t.tableNumber}: есть ${nBook} бронирований. Отмените или завершите их во вкладке «Брони», затем повторите удаление.`,
+                      });
+                      return;
+                    }
+                    setDeleteModal({
+                      variant: "confirm",
+                      danger: true,
+                      title: "Удалить стол?",
+                      message: `Стол №${t.tableNumber} будет удалён безвозвратно.`,
+                      confirmLabel: "Удалить",
+                      onConfirm: async () => {
+                        try {
+                          setError(null);
+                          await deleteTable(t.id);
+                          if (selectedHallId) fetchAdminTables(selectedHallId).then(setTables);
+                        } catch (e) {
+                          setError(getErrorMessage(e));
+                        }
+                      },
+                    });
+                  }}
+                >
                   Удалить
                 </button>
               </li>
